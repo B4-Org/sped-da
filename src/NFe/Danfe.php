@@ -396,6 +396,26 @@ class Danfe extends DaCommon
     }
 
     /**
+     * Add the credits to the integrator in the footer message
+     * @param string $message
+     */
+    public function creditsIntegratorFooter($message = '')
+    {
+        $this->creditos = trim($message);
+    }
+
+    /**
+     * Add the credits to the integrator in the footer message
+     * @param string $logo
+     */
+    public function logoIntegratorFooter($logo = '')
+    {
+        if($logo != ''){
+            $this->logomarca_footer = $logo;
+        }
+    }
+
+    /**
      * monta
      * Monta a DANFE conforme as informações fornecidas para a classe durante sua
      * construção. Constroi DANFEs com até 3 páginas podendo conter até 56 itens.
@@ -940,6 +960,13 @@ class Danfe extends DaCommon
         // coloca o logo
         if (! empty($this->logomarca)) {
             $logoInfo = getimagesize($this->logomarca);
+
+            $type = strtolower(explode('/', $logoInfo['mime'])[1]);
+            if ($type == 'png') {
+                $this->logomarca = $this->imagePNGtoJPG($this->logomarca);
+                $type == 'jpg';
+            }
+
             //largura da imagem em mm
             $logoWmm = ($logoInfo[0] / 72) * 25.4;
             //altura da imagem em mm
@@ -1248,7 +1275,7 @@ class Danfe extends DaCommon
             $h = 15;
             $w = $maxW - (2 * $x);
             $this->pdf->settextcolor(90, 90, 90);
-            
+
             foreach ($resp['message'] as $msg) {
                 $aFont = ['font' => $this->fontePadrao, 'size' => 48, 'style' => 'B'];
                 $this->pdf->textBox($x, $y, $w, $h, $msg, $aFont, 'C', 'C', 0, '');
@@ -2826,7 +2853,6 @@ class Danfe extends DaCommon
                 $ICMS         = $imposto->getElementsByTagName("ICMS")->item(0);
                 $IPI          = $imposto->getElementsByTagName("IPI")->item(0);
                 $textoProduto = $this->descricaoProduto($thisItem);
-                
 
                 // Posição y dos dados das unidades tributaveis.
                 $yTrib = $this->pdf->fontSize + .5;
@@ -3422,11 +3448,36 @@ class Danfe extends DaCommon
             $x = $this->wCanhoto;
         }
         $aFont = ['font' => $this->fontePadrao, 'size' => 6, 'style' => 'I'];
-        $texto = "Impresso em " . date('d/m/Y') . " as " . date('H:i:s')
-            . '  ' . $this->creditos;
-        $this->pdf->textBox($x, $y, $w, 0, $texto, $aFont, 'T', 'L', false);
-        $texto = $this->powered ? "Powered by NFePHP®" : '';
-        $this->pdf->textBox($x, $y, $w, 0, $texto, $aFont, 'T', 'R', false, '');
+        $texto = "Impresso em " . date('d/m/Y') . " as " . date('H:i:s');
+
+        if (!empty($this->logomarca_footer)) {
+            $this->pdf->textBox($x, $y - 2, $w, 0, $texto, $aFont, 'T', 'L', false);
+
+            $logoInfo = getimagesize($this->logomarca_footer);
+            $type = strtolower(explode('/', $logoInfo['mime'])[1]);
+            if ($type == 'png') {
+                $this->logomarca_footer = $this->imagePNGtoJPG($this->logomarca_footer);
+                $type == 'jpg';
+            }
+
+            //largura da imagem em mm
+            $logoWmm = ($logoInfo[0]/72)*25.4;
+            //altura da imagem em mm
+            $logoHmm = ($logoInfo[1]/72)*25.4;
+
+            $nImgW = 15;
+            $nImgH = round($logoHmm * ($nImgW/$logoWmm), 0);
+            $xImg = ($x+($w-(1+$nImgW)));
+            $yImg = round(($h-$nImgH)/2, 0) +$y;
+
+            $type = (substr($this->logomarca_footer, 0, 7) === 'data://') ? 'jpg' : null;
+            $this->pdf->Image($this->logomarca_footer, $xImg, $yImg, $nImgW, $nImgH, $type);
+        } else {
+            $this->pdf->textBox($x, $y, $w, 0, $texto, $aFont, 'T', 'L', false);
+
+            $texto = $this->creditos ? $this->creditos : 'Powered by NFePHP®';
+            $this->pdf->textBox($x, $y, $w, 0, $texto, $aFont, 'T', 'R', false, '');
+        }
     }
 
     /**
@@ -3801,5 +3852,16 @@ class Danfe extends DaCommon
         }
 
         return round(($numlinhas * $this->pdf->fontSize) + ($numlinhas * 0.5), 2);
+    }
+
+    private function imagePNGtoJPG($original)
+    {
+        $image = imagecreatefrompng($original);
+        ob_start();
+        imagejpeg($image, null, 100);
+        imagedestroy($image);
+        $stringdata = ob_get_contents(); // read from buffer
+        ob_end_clean();
+        return 'data://text/plain;base64,'.base64_encode($stringdata);
     }
 }
