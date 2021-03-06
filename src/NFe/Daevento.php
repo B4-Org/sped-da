@@ -87,8 +87,7 @@ class Daevento extends Common
     {
         if (isset($activate) && is_bool($activate)) {
             $this->debugmode = $activate;
-        }
-         else {
+        } else {
             //desativar modo debug
             error_reporting(0);
             ini_set('display_errors', 'Off');
@@ -103,7 +102,7 @@ class Daevento extends Common
      */
     public function creditsIntegratorFooter($message = '', $link = null)
     {
-        if($link){
+        if ($link) {
             $this->creditsLink = $link;
         }
 
@@ -116,7 +115,7 @@ class Daevento extends Common
      */
     public function logoIntegratorFooter($logo = '')
     {
-        if($logo != ''){
+        if ($logo != '') {
             $this->logomarca_footer = $logo;
         }
     }
@@ -531,7 +530,7 @@ class Daevento extends Common
         $aFont = ['font' => $this->fontePadrao,'size' => 6,'style' => 'I'];
 
         if (!empty($this->logomarca_footer)) {
-            $this->pdf->textBox($x, $y - 2, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
+            $this->pdf->textBox($x, $y - 1, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
 
             $logoInfo = getimagesize($this->logomarca_footer);
             $type = strtolower(explode('/', $logoInfo['mime'])[1]);
@@ -548,7 +547,7 @@ class Daevento extends Common
             $nImgW = 15;
             $nImgH = round($logoHmm * ($nImgW/$logoWmm), 0);
             $xImg = ($x+($w-(1+$nImgW)));
-            $yImg = round(($h-$nImgH)/2, 0) +$y;
+            $yImg = round(($h-$nImgH)/2, 0) + $y + 1;
 
             $type = (substr($this->logomarca_footer, 0, 7) === 'data://') ? 'jpg' : null;
             $this->pdf->Image($this->logomarca_footer, $xImg, $yImg, $nImgW, $nImgH, $type);
@@ -558,7 +557,7 @@ class Daevento extends Common
             $texto = $this->creditos ? $this -> creditos : '';
             $aFont = ['font' => $this->fontePadrao,'size' => 6,'style' => 'I'];
 
-            if($this->creditsLink){
+            if ($this->creditsLink) {
                 $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'R', 0, $this->creditsLink);
             } else {
                 $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
