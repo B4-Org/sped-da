@@ -18,18 +18,28 @@ namespace NFePHP\DA\NFe;
 use Exception;
 use NFePHP\DA\Legacy\Dom;
 use NFePHP\DA\Legacy\Pdf;
-use NFePHP\DA\Common\DaCommon;
+use NFePHP\DA\Legacy\Common;
 
-class Daevento extends DaCommon
+class Daevento extends Common
 {
     public $chNFe;
 
+    protected $logoAlign = 'C';
     protected $yDados = 0;
+    protected $debugmode = false;
     protected $dadosEmitente = array();
     protected $xml;
+    protected $logomarca = '';
     protected $errMsg = '';
     protected $errStatus = false;
+    protected $orientacao = 'P';
+    protected $papel = 'A4';
+    protected $destino = 'I';
+    protected $pdfDir = '';
+    protected $fontePadrao = 'Times';
     protected $version = '0.1.4';
+    protected $wPrint;
+    protected $hPrint;
     protected $wCanhoto;
     protected $formatoChave = "#### #### #### #### #### #### #### #### #### #### ####";
     protected $id;
@@ -53,6 +63,7 @@ class Daevento extends DaCommon
     private $infEvento;
     private $retEvento;
     private $rinfEvento;
+    private $creditos;
 
     /**
      * __construct
@@ -76,11 +87,6 @@ class Daevento extends DaCommon
     {
         if (isset($activate) && is_bool($activate)) {
             $this->debugmode = $activate;
-        }
-        if ($this->debugmode) {
-            //ativar modo debug
-            error_reporting(E_ALL);
-            ini_set('display_errors', 'On');
         } else {
             //desativar modo debug
             error_reporting(0);
@@ -89,20 +95,29 @@ class Daevento extends DaCommon
         return $this->debugmode;
     }
 
+
     /**
-     * Dados brutos do PDF
-     * @return string
+     * Add the credits to the integrator in the footer message
+     * @param string $message
      */
-    public function render(
-        $logo = null,
-        $orientacao = 'P',
-        $papel = 'A4',
-        $logoAlign = 'C'
-    ) {
-        if (empty($this->pdf)) {
-            $this->monta($logo, $orientacao, $papel, $logoAlign);
+    public function creditsIntegratorFooter($message = '', $link = null)
+    {
+        if ($link) {
+            $this->creditsLink = $link;
         }
-        return $this->pdf->getPdf();
+
+        $this->creditos = trim($message);
+    }
+
+    /**
+     * Add the credits to the integrator in the footer message
+     * @param string $logo
+     */
+    public function logoIntegratorFooter($logo = '')
+    {
+        if ($logo != '') {
+            $this->logomarca_footer = $logo;
+        }
     }
 
     protected function loadDoc($xml)
@@ -152,18 +167,22 @@ class Daevento extends DaCommon
      * A definição de margens e posições iniciais para a impressão são estabelecidas no
      * pelo conteúdo da funçao e podem ser modificados.
      *
-     * @param  string $logo
+     * @param  string $orientacao (Opcional) Estabelece a orientação da impressão (ex. P-retrato),
+     *  se nada for fornecido será usado o padrão da NFe
+     * @param  string $papel      (Opcional) Estabelece o tamanho do papel (ex. A4)
      * @return string O ID do evento extraido do arquivo XML
      */
-    protected function monta(
-        $logo = ''
+    public function monta(
+        $logo = null,
+        $orientacao = 'P',
+        $papel = 'A4',
+        $logoAlign = 'C'
     ) {
-        if (!empty($logo)) {
-            $this->logomarca = $this->adjustImage($logo);
-        }
-        if (empty($this->orientacao)) {
-            $this->orientacao = 'P';
-        }
+        $this->logomarca = $logo;
+        $this->fontePadrao = 'Times';
+        $this->orientacao = $orientacao;
+        $this->papel = $papel;
+        $this->logoAlign = $logoAlign;
         $this->pdf = new Pdf($this->orientacao, 'mm', $this->papel);
         if ($this->orientacao == 'P') {
             // margens do PDF
@@ -246,6 +265,11 @@ class Daevento extends DaCommon
         $this->pdf->textBox($x, $y, $w, 5, $texto, $aFont, 'T', 'C', 0, '');
         if (!empty($this->logomarca)) {
             $logoInfo = getimagesize($this->logomarca);
+            $type = strtolower(explode('/', $logoInfo['mime'])[1]);
+            if ($type == 'png') {
+                $this->logomarca = $this->imagePNGtoJPG($this->logomarca);
+                $type == 'jpg';
+            }
             // largura da imagem em mm
             $logoWmm = ($logoInfo[0] / 72) * 25.4;
             // altura da imagem em mm
@@ -279,7 +303,7 @@ class Daevento extends DaCommon
                 $tw = round(2 * $w / 3, 0);
             }
             $type = (substr($this->logomarca, 0, 7) === 'data://') ? 'jpg' : null;
-            $this->pdf->image($this->logomarca, $xImg, $yImg, $nImgW, $nImgH, 'jpeg');
+            $this->pdf->image($this->logomarca, $xImg, $yImg, $nImgW, $nImgH, $type);
         } else {
             $x1 = $x;
             $y1 = round($h / 3 + $y, 0);
@@ -501,12 +525,54 @@ class Daevento extends DaCommon
         $aFont = ['font' => $this->fontePadrao,'size' => 10,'style' => 'I'];
         $this->pdf->textBox($x, $y, $w, 20, $texto, $aFont, 'T', 'C', 0, '', false);
         $y = $this->hPrint - 4;
-        $texto = "Impresso em  " . date('d/m/Y   H:i:s') . ' ' . $this->creditos;
+        $texto = "Impresso em  " . date('d/m/Y') . " as " . date('H:i:s');
         $w = $this->wPrint - 4;
         $aFont = ['font' => $this->fontePadrao,'size' => 6,'style' => 'I'];
-        $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
-        $texto = $this->powered ? "Powered by NFePHP®" : '';
-        $aFont = ['font' => $this->fontePadrao,'size' => 6,'style' => 'I'];
-        $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'R', 0, 'http://www.nfephp.org');
+
+        if (!empty($this->logomarca_footer)) {
+            $this->pdf->textBox($x, $y - 1, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
+
+            $logoInfo = getimagesize($this->logomarca_footer);
+            $type = strtolower(explode('/', $logoInfo['mime'])[1]);
+            if ($type == 'png') {
+                $this->logomarca_footer = $this->imagePNGtoJPG($this->logomarca_footer);
+                $type == 'jpg';
+            }
+
+            //largura da imagem em mm
+            $logoWmm = ($logoInfo[0]/72)*25.4;
+            //altura da imagem em mm
+            $logoHmm = ($logoInfo[1]/72)*25.4;
+
+            $nImgW = 15;
+            $nImgH = round($logoHmm * ($nImgW/$logoWmm), 0);
+            $xImg = ($x+($w-(1+$nImgW)));
+            $yImg = round(($h-$nImgH)/2, 0) + $y + 1;
+
+            $type = (substr($this->logomarca_footer, 0, 7) === 'data://') ? 'jpg' : null;
+            $this->pdf->Image($this->logomarca_footer, $xImg, $yImg, $nImgW, $nImgH, $type);
+        } else {
+            $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
+
+            $texto = $this->creditos ? $this -> creditos : '';
+            $aFont = ['font' => $this->fontePadrao,'size' => 6,'style' => 'I'];
+
+            if ($this->creditsLink) {
+                $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'R', 0, $this->creditsLink);
+            } else {
+                $this->pdf->textBox($x, $y, $w, 4, $texto, $aFont, 'T', 'L', 0, '');
+            }
+        }
+    }
+
+    private function imagePNGtoJPG($original)
+    {
+        $image = imagecreatefrompng($original);
+        ob_start();
+        imagejpeg($image, null, 100);
+        imagedestroy($image);
+        $stringdata = ob_get_contents(); // read from buffer
+        ob_end_clean();
+        return 'data://text/plain;base64,'.base64_encode($stringdata);
     }
 }
