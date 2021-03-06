@@ -867,28 +867,48 @@ class Danfe extends Common
     protected function statusNFe()
     {
         if (!isset($this->nfeProc)) {
-            return ['status' => false, 'message' => 'NFe NÃO PROTOCOLADA'];
+            $resp['status'] = false;
+            $resp['message'][] = 'NFe NÃO PROTOCOLADA';
+        } else {
+            if ($this->getTagValue($this->ide, "tpAmb") == '2') {
+                $resp['status'] = false;
+                $resp['message'][] =  "NFe EMITIDA EM HOMOLOGAÇÃO";
+            }
+            $retEvento = $this->nfeProc->getElementsByTagName('retEvento')->item(0);
+            $cStat = $this->getTagValue($this->nfeProc, "cStat");
+            if ($cStat == '110' ||
+                $cStat == '301' ||
+                $cStat == '302'
+            ) {
+                $resp['status'] = false;
+                $resp['message'][] = "NFe DENEGADA";
+            } elseif ($cStat == '101'
+                || $cStat == '151'
+                || $cStat == '135'
+                || $cStat == '155'
+                || $this->cancelFlag === true
+            ) {
+                $resp['status'] = false;
+                $resp['message'][] = "NFe CANCELADA";
+            } elseif (!empty($retEvento)) {
+                $infEvento = $retEvento->getElementsByTagName('infEvento')->item(0);
+                $cStat = $this->getTagValue($infEvento, "cStat");
+                $tpEvento= $this->getTagValue($infEvento, "tpEvento");
+                $dhEvento = date("d/m/Y H:i:s", $this->toTimestamp($this->getTagValue($infEvento, "dhRegEvento")));
+                $nProt = $this->getTagValue($infEvento, "nProt");
+                if ($tpEvento == '110111' &&
+                    ($cStat == '101' ||
+                     $cStat == '151' ||
+                     $cStat == '135' ||
+                     $cStat == '155')
+                ) {
+                    $resp['status'] = false;
+                    $resp['message'][] = "NFe CANCELADA";
+                    $resp['submessage'] = "{$dhEvento} - {$nProt}";
+                }
+            }
         }
-        if ($this->getTagValue($this->ide, "tpAmb") == '2') {
-            return ['status' => false, 'message' => 'NFe EMITIDA EM HOMOLOGAÇÃO'];
-        }
-        $cStat = $this->getTagValue($this->nfeProc, "cStat");
-        if ($cStat == '101'
-            || $cStat == '151'
-            || $cStat == '135'
-            || $cStat == '155'
-        ) {
-            return ['status' => false, 'message' => 'NFe CANCELADA'];
-        }
-
-        if ($cStat == '110' ||
-               $cStat == '301' ||
-               $cStat == '302'
-
-        ) {
-            return ['status' => false, 'message' => 'NFe DENEGADA'];
-        }
-        return ['status' => true, 'message' => ''];
+        return $resp;
     }
 
     protected function notaDPEC()
@@ -2115,13 +2135,38 @@ class Danfe extends Common
             } else {
                 $maxDupCont = 8;
             }
-            $increm = 1;
-            $formaPagamento = ['01'=>'Dinheiro','02'=>'Cheque','03'=>'Cartão de Crédito',
-                                    '04'=>'Cartão de Débito','05'=>'Crédito Loja','10'=>'Vale Alimentação',
-                                    '11'=>'Vale Refeição','12'=>'Vale Presente','13'=>'Vale Combustível',
-                                    '14'=>'Duplicata Mercantil','15'=>'Boleto','90'=>'Sem pagamento','99'=>'Outros'];
-            $bandeira = ['01'=>'Visa','02'=>'Mastercard','03'=>'American','04'=>'Sorocred','05'=>'Diners',
-                              '06'=>'Elo','07'=>'Hipercard','08'=>'Aura','09'=>'Cabal','99'=>'Outros'];
+            $increm         = 1;
+            $formaPagamento = [
+                '01' => 'Dinheiro',
+                '02' => 'Cheque',
+                '03' => 'Cartão de Crédito',
+                '04' => 'Cartão de Débito',
+                '05' => 'Crédito Loja',
+                '10' => 'Vale Alimentação',
+                '11' => 'Vale Refeição',
+                '12' => 'Vale Presente',
+                '13' => 'Vale Combustível',
+                '14' => 'Duplicata Mercantil',
+                '15' => 'Boleto',
+                '16' => 'Depósito Bancário',
+                '17' => 'Pagamento Instantâneo (PIX)',
+                '18' => 'Transferência bancária, Carteira Digital',
+                '19' => 'Programa de fidelidade, Cashback, Crédito Virtual',
+                '90' => 'Sem pagamento',
+                '99' => 'Outros'
+            ];
+            $bandeira       = [
+                '01' => 'Visa',
+                '02' => 'Mastercard',
+                '03' => 'American',
+                '04' => 'Sorocred',
+                '05' => 'Diners',
+                '06' => 'Elo',
+                '07' => 'Hipercard',
+                '08' => 'Aura',
+                '09' => 'Cabal',
+                '99' => 'Outros'
+            ];
             foreach ($this->detPag as $k => $d) {
                 $fPag = !empty($this->detPag->item($k)->getElementsByTagName('tPag')->item(0)->nodeValue)
                 ? $this->detPag->item($k)->getElementsByTagName('tPag')->item(0)->nodeValue
