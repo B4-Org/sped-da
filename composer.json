@@ -15,6 +15,12 @@
         {
             "name": "Comunidade NFePHP",
             "homepage": "https://github.com/nfephp-org/sped-da/graphs/contributors"
+        },
+        {
+            "name": "Marcon W O Neves",
+            "email": "oi@marconwillian.dev",
+            "homepage": "http://marconwillian.dev",
+            "role": "Developer"
         }
     ],
     "require": {
